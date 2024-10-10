@@ -38,7 +38,7 @@ class UserLogin(BaseModel):
 
 
 # Endpoint to create a new user
-@router.post("/users/create", response_model=User)
+@router.post("/create", response_model=User)
 async def create_user(user: UserCreate):
    # Check if the username already exists
    existing_user = await get_user(user.username)
@@ -55,7 +55,7 @@ async def create_user(user: UserCreate):
 
 
 # Endpoint to get a user by user_id
-@router.get("/users/{user_id}", response_model=User)
+@router.get("/get/{user_id}", response_model=User)
 async def read_user(user_id: int):
    result = await get_user(user_id)
    if result is None:
@@ -64,7 +64,7 @@ async def read_user(user_id: int):
 
 
 # Endpoint to update a user
-@router.put("/users/{user_id}", response_model=User)
+@router.put("/put/{user_id}", response_model=User)
 async def update_user_endpoint(user_id: int, user: UserUpdate):
    result = await update_user(user_id, user.username, user.password_hash, user.email)
    if result is None:
@@ -73,7 +73,7 @@ async def update_user_endpoint(user_id: int, user: UserUpdate):
 
 
 # Endpoint to delete a user
-@router.delete("/users/{user_id}")
+@router.delete("/delete/{user_id}")
 async def delete_user_endpoint(user_id: int):
    result = await delete_user(user_id)
    if result is None:
@@ -82,7 +82,7 @@ async def delete_user_endpoint(user_id: int):
 
 
 # Endpoint for user login
-@router.post("/users/login")
+@router.post("/login")
 async def login_user(user: UserLogin):
    # Fetch user from the database
    db_user = await get_user_by_email(user.email,user.password_hash)

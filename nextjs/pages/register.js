@@ -63,7 +63,7 @@ export default function AuthPage() {
       localStorage.setItem("username", data.username);
       localStorage.setItem("email", data.email);
 
-      router.push("/");
+      router.push("/page1");
     } catch (error) {
       setSnackbarMessage(error.message);
       setSnackbarSeverity("error");
