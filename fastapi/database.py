@@ -2,7 +2,8 @@ from databases import Database
 from datetime import date
 import logging
 from fastapi import HTTPException
-from databases.backends.common.records import Record
+from sqlalchemy import text
+from datetime import datetime
 
 POSTGRES_USER = "temp"
 POSTGRES_PASSWORD = "temp"
@@ -86,60 +87,92 @@ async def delete_user(user_id: int):
         raise HTTPException(status_code=500, detail=f"Failed to delete user: {str(e)}")
 
 # Function to insert a new task into the tasks table
-async def insert_task(title: str, description: str, dueDate: date, priority: str, status: str):
+# Insert task with validation
+async def insert_task(title: str, description: str, due_date: date, priority: str, status: str):
     query = """
-    INSERT INTO tasks (title, description, dueDate, priority, status)
-    VALUES (:title, :description, :dueDate, :priority, :status)
-    RETURNING id AS task_id, title, description, dueDate, priority, status
+    INSERT INTO tasks (title, description, due_date, priority, status)
+    VALUES (:title, :description, :due_date, :priority, :status)
+    RETURNING task_id, title, description, due_date, priority, status, created_at
     """
     values = {
         "title": title,
         "description": description,
-        "dueDate": dueDate,
+        "due_date": due_date,
         "priority": priority,
         "status": status
     }
+    
     try:
-        return await database.fetch_one(query=query, values=values)
-    except Exception as e:
-        logging.error(f"Error inserting task {title}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to insert task: {str(e)}")
+        # Validate date
+        due_date = validate_due_date(due_date)
 
-# Function to link a task to a user in the links table
-async def link_task_to_user(task_id: int, user_id: int):
-    query = """
-    INSERT INTO links (task_id, user_id)
-    VALUES (:task_id, :user_id)
-    RETURNING task_id, user_id
-    """
-    values = {"task_id": task_id, "user_id": user_id}
+        # Insert task into DB
+        result = await database.fetch_one(query=query, values=values)
+        if result:
+            logging.debug(f"Inserted task: {dict(result)}")
+            return dict(result)  # Ensure returning as dict to avoid Record object issues
+        else:
+            logging.warning("No result after inserting the task.")
+            raise HTTPException(status_code=500, detail="Task insertion failed: no result")
+    except Exception as e:
+        logging.error(f"Error inserting task: {str(e)} | Task data: {title}, {description}, {due_date}, {priority}, {status}")
+        raise HTTPException(status_code=500, detail="Error inserting task")
+
+
+
+
+
+async def create_task_endpoint(task_data):
     try:
-        return await database.fetch_one(query=query, values=values)
-    except Exception as e:
-        logging.error(f"Error linking task {task_id} to user {user_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to link task: {str(e)}")
+        # Log the incoming task data
+        logging.debug(f"Creating task with data: {task_data}")
 
-# Function to get tasks for a specific user by querying the links table
+        # Insert the new task
+        new_task = await insert_task(
+            task_data['title'], 
+            task_data['description'], 
+            task_data['due_date'], 
+            task_data['priority'], 
+            task_data['status']
+        )
+
+        if not new_task:
+            raise HTTPException(status_code=500, detail="Task creation failed")
+        
+        # Log the inserted task
+        logging.debug(f"Task created: {new_task}")
+
+        # Link the task to the user
+        task_id = new_task['task_id']
+        user_id = task_data['user_id']
+        link_success = await link_task_to_user(task_id, user_id)
+
+        if not link_success:
+            raise HTTPException(status_code=500, detail="Linking task to user failed")
+        
+        # Log linking success
+        logging.debug(f"Task {task_id} successfully linked to user {user_id}")
+        
+        return new_task  # Return the task as the response
+    except Exception as e:
+        logging.error(f"Task creation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal error occurred: {str(e)}")
+
+
+
+# Function to get tasks for a specific user
 async def get_tasks_by_user(user_id: int):
     query = """
-    SELECT id, title, description, duedate, priority, status, created_at
+    SELECT tasks.task_id, tasks.title, tasks.description, tasks.due_date, tasks.priority, tasks.status, tasks.created_at
     FROM tasks
-    INNER JOIN links ON tasks.id = links.task_id
+    INNER JOIN links ON tasks.task_id = links.task_id
     WHERE links.user_id = :user_id
     """
     try:
+        logging.debug(f"Fetching tasks for user {user_id}")
         result = await database.fetch_all(query=query, values={"user_id": user_id})
 
-        # Convert Record objects to dictionaries and ensure date fields are serialized
-        tasks = []
-        for task in result:
-            task_dict = dict(task)
-            
-            # Ensure that dueDate is serialized as a string in ISO 8601 format
-            task_dict['dueDate'] = task_dict['dueDate'].isoformat() if isinstance(task_dict['dueDate'], (date,)) else task_dict['dueDate']
-            task_dict['created_at'] = task_dict['created_at'].isoformat() if isinstance(task_dict['created_at'], (date,)) else task_dict['created_at']
-
-            tasks.append(task_dict)
+        tasks = [dict(task) for task in result]
         
         logging.debug(f"Fetched tasks: {tasks}")
         return tasks
@@ -147,34 +180,98 @@ async def get_tasks_by_user(user_id: int):
         logging.error(f"Error fetching tasks for user {user_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch tasks: {str(e)}")
 
+async def update_task(task_id: int, user_id: int, title: str, description: str, due_date: date, priority: str, status: str):
+    # Validate that the task exists for the user before updating
+    task_exists_query = """
+    SELECT tasks.task_id FROM tasks
+    INNER JOIN links ON tasks.task_id = links.task_id
+    WHERE tasks.task_id = :task_id AND links.user_id = :user_id
+    """
+    
+    task_exists = await database.fetch_one(query=task_exists_query, values={"task_id": task_id, "user_id": user_id})
+    
+    if not task_exists:
+        logging.error(f"Task {task_id} not found for user {user_id}")
+        raise HTTPException(status_code=404, detail=f"Task with ID {task_id} not found for user {user_id}")
 
-# Function to update a task in the tasks table
-async def update_task(task_id: int, title: str, description: str, dueDate: date, priority: str, status: str):
+    # Proceed with the update if the task exists
     query = """
     UPDATE tasks
-    SET title = :title, description = :description, dueDate = :dueDate, priority = :priority, status = :status
-    WHERE id = :task_id
-    RETURNING id AS task_id, title, description, dueDate, priority, status
+    SET title = :title, description = :description, due_date = :due_date, priority = :priority, status = :status
+    WHERE task_id = :task_id
+    RETURNING task_id, title, description, due_date, priority, status, created_at  -- Ensure created_at is included
     """
+    
     values = {
         "task_id": task_id,
         "title": title,
         "description": description,
-        "dueDate": dueDate,
+        "due_date": due_date,
         "priority": priority,
         "status": status
     }
+
     try:
-        return await database.fetch_one(query=query, values=values)
+        logging.debug(f"Updating task {task_id} for user {user_id} with values: {values}")
+        updated_task = await database.fetch_one(query=query, values=values)
+        logging.debug(f"Task {task_id} updated successfully for user {user_id}")
+        return updated_task  # Ensure this includes all necessary fields for response
     except Exception as e:
         logging.error(f"Error updating task {task_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to update task: {str(e)}")
 
+
+# Function to link a task to a user in the links table
+async def link_task_to_user(task_id: int, user_id: int):
+    # Check if the link already exists
+    check_query = """
+    SELECT * FROM links WHERE task_id = :task_id AND user_id = :user_id
+    """
+    existing_link = await database.fetch_one(query=check_query, values={"task_id": task_id, "user_id": user_id})
+    
+    if existing_link:
+        raise HTTPException(status_code=400, detail="Task is already linked to the user.")
+    
+    # Proceed with linking if no link exists
+    query = """
+    INSERT INTO links (task_id, user_id)
+    VALUES (:task_id, :user_id)
+    RETURNING task_id, user_id
+    """
+    values = {"task_id": task_id, "user_id": user_id}
+    
+    try:
+        result = await database.fetch_one(query=query, values=values)
+        logging.debug(f"Task {task_id} linked to user {user_id}")
+        return result
+    except Exception as e:
+        logging.error(f"Error linking task to user: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error linking task to user: {str(e)}")
+
+
+
+
 # Function to delete a task from the tasks table
 async def delete_task(task_id: int):
-    query = "DELETE FROM tasks WHERE id = :task_id RETURNING *"
+    query = "DELETE FROM tasks WHERE task_id = :task_id RETURNING *"
     try:
         return await database.fetch_one(query=query, values={"task_id": task_id})
     except Exception as e:
         logging.error(f"Error deleting task {task_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to delete task: {str(e)}")
+
+
+
+def validate_due_date(due_date: date):
+    if isinstance(due_date, str):
+        try:
+            # Convert string to date
+            due_date = datetime.strptime(due_date, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid due date format. Use YYYY-MM-DD.")
+    
+    # Check if the due date is in the future
+    if due_date < datetime.today().date():
+        raise HTTPException(status_code=400, detail="Due date cannot be in the past.")
+
+    return due_date

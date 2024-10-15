@@ -22,7 +22,6 @@ import {
   InputLabel,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import { useRouter } from "next/router";
 
 const API_URL = "http://localhost:8000"; // FastAPI Backend URL
 
@@ -32,24 +31,24 @@ export default function Test() {
   const [newTask, setNewTask] = useState({
     title: "",
     description: "",
-    dueDate: "",
-    priority: "Low",  // Initialize with a default value
+    due_date: "", // Ensure due_date consistency
+    priority: "Low",  // Default value
     status: "Incomplete",
   });
   const [filter, setFilter] = useState("All Tasks"); // Task filter (All, Completed, etc.)
-  const [user_id, setUser_id] = useState(null); // Initialize user_id as null
+  const [user_id, setUser_id] = useState(null); // Store user_id
 
   // Fetch user_id from localStorage when component mounts
   useEffect(() => {
     const storedUserId = localStorage.getItem("user_id");
     if (storedUserId) {
-      setUser_id(parseInt(storedUserId)); // Set user_id from localStorage
+      setUser_id(parseInt(storedUserId));
     } else {
       console.error("No user_id found in localStorage.");
     }
   }, []);
 
-  // Fetch tasks when user_id is successfully set
+  // Fetch tasks when user_id is set
   useEffect(() => {
     if (user_id) {
       fetchTasks(); // Fetch tasks if user_id is available
@@ -60,22 +59,22 @@ export default function Test() {
   const fetchTasks = async () => {
     try {
       const response = await axios.get(`${API_URL}/api/tasks/fetch/${user_id}`);
-      setTasks(response.data); // Set the fetched tasks in state
-      console.log('Fetched tasks:', response.data);
+      setTasks(response.data); // Set fetched tasks
+      console.log("Fetched tasks:", response.data);
     } catch (error) {
       console.error("Error fetching tasks:", error.response ? error.response.data : error.message);
     }
   };
 
-  // Handle opening the modal for adding new tasks
+  // Open modal to add a new task
   const handleOpen = () => {
     setOpen(true);
   };
 
-  // Handle closing the modal
+  // Close modal and reset the form
   const handleClose = () => {
     setOpen(false);
-    resetForm(); // Reset the form when closing the modal
+    resetForm();
   };
 
   // Handle input changes in the form
@@ -87,29 +86,26 @@ export default function Test() {
     });
   };
 
-  // Create or Update a Task
+  // Submit task creation
   const handleSubmit = async () => {
-    if (newTask.title && newTask.description && newTask.dueDate) {
+    if (newTask.title && newTask.description && newTask.due_date) {
       const taskData = {
         ...newTask,
-        user_id: user_id, // Ensure user_id is passed correctly
+        user_id: user_id, // Ensure user_id is included
       };
 
       try {
         console.log("Submitting task data:", taskData);
-        // Make POST request to add the new task
         const response = await axios.post(`${API_URL}/api/tasks/create`, taskData, {
           headers: {
             "Content-Type": "application/json",
           },
         });
 
-        // Add the newly created task to the tasks array in the state
         const addedTask = response.data;
         setTasks([...tasks, addedTask]); // Update state with the new task
-
         console.log("Task added successfully");
-        handleClose(); // Close modal
+        handleClose(); // Close the modal
       } catch (error) {
         console.error("Error adding task:", error.response ? error.response.data : error.message);
       }
@@ -118,12 +114,11 @@ export default function Test() {
     }
   };
 
-  // Delete a task
+  // Delete task
   const handleDeleteTask = async (task_id) => {
     try {
       await axios.delete(`${API_URL}/api/tasks/delete/${task_id}`);
-      // Remove task from state after deletion
-      setTasks(tasks.filter(task => task.task_id !== task_id));
+      setTasks(tasks.filter(task => task.task_id !== task_id)); // Remove task from state
     } catch (error) {
       console.error("Error deleting task:", error.response ? error.response.data : error.message);
     }
@@ -135,24 +130,23 @@ export default function Test() {
       const updatedTask = tasks.find(task => task.task_id === task_id);
       updatedTask.status = newStatus;
 
+      console.log(`Updating task ${task_id} for user ${user_id} with status ${newStatus}`);
+
       await axios.put(`${API_URL}/api/tasks/update/${task_id}`, {
         ...updatedTask,
         user_id: user_id, // Ensure user_id is passed correctly
       });
 
-      setTasks(tasks.map(task => task.task_id === task_id ? updatedTask : task)); // Update state with the updated task
+      setTasks(tasks.map(task => task.task_id === task_id ? updatedTask : task)); // Update state with updated task
     } catch (error) {
       console.error("Error updating task status:", error.response ? error.response.data : error.message);
     }
   };
 
-  // Helper function to handle date parsing
+  // Parse date string for display
   const parseDate = (dateString) => {
-    if (!dateString) return 'Invalid Date'; // Handle empty or null dates
-    
-    // Ensure the date is in 'YYYY-MM-DD' format before creating a Date object
+    if (!dateString) return 'Invalid Date';
     const parsedDate = new Date(dateString);
-    
     return !isNaN(parsedDate) ? parsedDate.toLocaleDateString('en-US', {
       year: 'numeric',
       month: '2-digit',
@@ -160,7 +154,7 @@ export default function Test() {
     }) : 'Invalid Date';
   };
 
-  // Filter tasks based on the selected filter (e.g., Completed, Pending)
+  // Filter tasks based on selected filter
   const filteredTasks = tasks.filter((task) => {
     if (filter === "Completed Tasks") return task.status === "Complete";
     if (filter === "Pending Tasks") return task.status === "Incomplete";
@@ -173,7 +167,7 @@ export default function Test() {
       title: "",
       description: "",
       priority: "Low",
-      dueDate: "",
+      due_date: "", // Reset due_date
       status: "Incomplete",
     });
   };
@@ -254,8 +248,7 @@ export default function Test() {
                         Priority: {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
                       </Typography>
                       <Typography variant="body2" color="text.secondary" sx={{ marginTop: "10px" }}>
-                        {/* Use parseDate function to display the dueDate */}
-                        Due Date: 2024-10-12{(task.dueDate)}
+                        Due Date: {parseDate(task.due_date)} {/* Ensure due_date is used */}
                       </Typography>
 
                       {/* Task Status Dropdown */}
@@ -311,7 +304,7 @@ export default function Test() {
             fullWidth
             margin="dense"
             name="priority"
-            value={newTask.priority || "Low"}  // Ensure there is a fallback value
+            value={newTask.priority || "Low"}
             onChange={handleChange}
           >
             <MenuItem value="Low">Low</MenuItem>
@@ -323,8 +316,8 @@ export default function Test() {
             type="date"
             fullWidth
             margin="dense"
-            name="dueDate"
-            value={newTask.dueDate}
+            name="due_date"
+            value={newTask.due_date}
             onChange={handleChange}
             InputLabelProps={{
               shrink: true,
@@ -336,7 +329,7 @@ export default function Test() {
             fullWidth
             margin="dense"
             name="status"
-            value={newTask.status} // Map status
+            value={newTask.status}
             onChange={handleChange}
           >
             <MenuItem value="Incomplete">Incomplete</MenuItem>

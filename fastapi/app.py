@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 from routes.users import router as users_router
 from routes.tasks import router as tasks_router
+from routes.links import router as links_router
 #from routes.calendar import router as calendar_router
 from database import connect_db, disconnect_db
 from fastapi.responses import JSONResponse
@@ -79,6 +80,7 @@ async def global_exception_handler(request, exc):
     )
 
 # Include routers
+app.include_router(links_router, prefix="/api/links")
 app.include_router(users_router, prefix="/api/users")
 app.include_router(tasks_router, prefix="/api/tasks")
 #app.include_router(calendar_router, prefix="/api/calendar")
