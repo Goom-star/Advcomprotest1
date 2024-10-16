@@ -1,4 +1,6 @@
 from fastapi import APIRouter, FastAPI, HTTPException
+from fastapi.responses import FileResponse
+
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
@@ -98,3 +100,5 @@ async def login_user(user: UserLogin):
        "email": db_user.email,
        "created_at": db_user.created_at
    }
+
+

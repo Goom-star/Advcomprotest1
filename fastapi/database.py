@@ -260,7 +260,76 @@ async def delete_task(task_id: int):
         logging.error(f"Error deleting task {task_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to delete task: {str(e)}")
 
+# Insert a new calendar entry
+async def insert_calendar_entry(user_id: int, task_id: int):
+    query = """
+    INSERT INTO calendar (user_id, task_id)
+    VALUES (:user_id, :task_id)
+    RETURNING calendar_id, user_id, task_id, created_at
+    """
+    values = {"user_id": user_id, "task_id": task_id}
+    try:
+        return await database.fetch_one(query=query, values=values)
+    except IntegrityError as e:
+        logging.error(f"Integrity error inserting calendar entry for user {user_id} and task {task_id}: {str(e)}")
+        raise HTTPException(status_code=409, detail="Duplicate calendar entry detected")
+    except Exception as e:
+        logging.error(f"Error inserting calendar entry for user {user_id} and task {task_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to insert calendar entry: {str(e)}")
 
+# Get calendar entries by user
+async def get_calendar_entries(user_id: int):
+    query = """
+    SELECT calendar_id, user_id, task_id, created_at
+    FROM calendar
+    WHERE user_id = :user_id
+    """
+    try:
+        # Fetch the entries from the database
+        return await database.fetch_all(query=query, values={"user_id": user_id})
+    except Exception as e:
+        logging.error(f"Error fetching calendar entries for user {user_id}: {str(e)}")
+        raise
+
+# Get a calendar entry by user and task (to check for duplicates)
+async def get_calendar_entry_by_user_and_task(user_id: int, task_id: int):
+    query = """
+    SELECT calendar_id FROM calendar
+    WHERE user_id = :user_id AND task_id = :task_id
+    """
+    try:
+        return await database.fetch_one(query=query, values={"user_id": user_id, "task_id": task_id})
+    except Exception as e:
+        logging.error(f"Error fetching calendar entry for user {user_id} and task {task_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch calendar entry: {str(e)}")
+
+# Update a calendar entry
+async def update_calendar_entry(calendar_id: int, user_id: int, task_id: int):
+    query = """
+    UPDATE calendar
+    SET user_id = :user_id, task_id = :task_id
+    WHERE calendar_id = :calendar_id
+    RETURNING calendar_id, user_id, task_id, created_at
+    """
+    values = {"calendar_id": calendar_id, "user_id": user_id, "task_id": task_id}
+    try:
+        return await database.fetch_one(query=query, values=values)
+    except Exception as e:
+        logging.error(f"Error updating calendar entry {calendar_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to update calendar entry: {str(e)}")
+
+# Delete calendar entry
+async def delete_calendar_entry(calendar_id: int):
+    query = """
+    DELETE FROM calendar WHERE calendar_id = :calendar_id RETURNING *
+    """
+    try:
+        return await database.fetch_one(query=query, values={"calendar_id": calendar_id})
+    except Exception as e:
+        logging.error(f"Error deleting calendar entry {calendar_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete calendar entry: {str(e)}")
+
+# Function to validate due date (same as before)
 
 def validate_due_date(due_date: date):
     if isinstance(due_date, str):

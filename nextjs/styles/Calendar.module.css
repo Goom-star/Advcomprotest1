@@ -1,0 +1,151 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px;
+    background-color: #ffffff;
+    min-height: 100vh;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+  
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 80%;
+    margin-bottom: 20px;
+  }
+  
+  .navButtons button {
+    padding: 10px 20px;
+    background-color: #b0bec5;  /* Light gray button */
+    color: #2d3436;
+    border: none;
+    border-radius: 6px;
+    margin-right: 10px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    font-weight: bold;
+  }
+  
+  .navButtons button:hover {
+    background-color: #90a4ae;  /* Slightly darker gray on hover */
+    transform: translateY(-2px);
+  }
+  
+  .navButtons button:active {
+    background-color: #78909c;  /* Dark gray on active */
+  }
+  
+  .title {
+    font-size: 32px;
+    font-weight: bold;
+    color: #2d3436;
+    letter-spacing: 1px;
+  }
+  
+  .calendar {
+    width: 80%;
+    margin-top: 20px;
+    background-color: #f5f5f5;  /* Light gray background */
+    border-radius: 12px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+  }
+  
+  .weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    padding: 15px;
+    background-color: #e0e0e0;  /* Medium gray for weekdays */
+    border-bottom: 1px solid #dcdde1;
+    text-align: center;
+    font-weight: 600;
+    color: #4f4f4f;  /* Dark gray for weekday text */
+    font-size: 16px;
+  }
+  
+  .days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    background-color: #f5f5f5;  /* Light gray background */
+  }
+  
+  .day,
+  .inactiveDay {
+    height: 120px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 15px;
+    background-color: white;  /* White for active days */
+    border: 1px solid #e0e0e0;
+    position: relative;
+    transition: background-color 0.2s ease;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+  
+  .day:hover {
+    background-color: #f0f0f0;  /* Subtle hover effect */
+  }
+  
+  .inactiveDay {
+    background-color: #f9f9f9;  /* Light gray for inactive days */
+  }
+  
+  .dayNumber {
+    font-size: 20px;
+    font-weight: bold;
+    color: #333333;  /* Darker gray for day number */
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: #cfd8dc;  /* Light gray badge for day number */
+    color: #2d3436;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .taskContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+    width: 100%;
+    overflow-y: auto;
+    max-height: 70px;
+  }
+  
+  .taskBox {
+    background-color: #eceff1;  /* Very light gray for task boxes */
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #2d3436;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.3s ease, box-shadow 0.2s ease;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.05);
+  }
+  
+  .taskBox:hover {
+    background-color: #cfd8dc;  /* Light gray on hover */
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  .taskBox:active {
+    background-color: #78909c;  /* Darker gray on active */
+    color: white;
+  }
+  
+  .inactiveDay:hover {
+    cursor: not-allowed;
+  }
+  
+  
