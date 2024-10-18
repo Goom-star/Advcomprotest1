@@ -1,54 +1,62 @@
-# from fastapi import APIRouter, UploadFile, File, HTTPException
-# from fastapi.responses import StreamingResponse
-# import io
-# import imghdr
-# from database import insert_or_update_user_image, get_user_image, delete_user_image
-# from PIL import Image
-# from io import BytesIO
+from fastapi import APIRouter, UploadFile, File, HTTPException
+from pydantic import BaseModel
+from datetime import datetime
+from typing import List
+from database import insert_image, get_images_by_user, delete_image
+import logging
 
-# # Create a new router for image-related endpoints
-# router = APIRouter()
+router = APIRouter()
 
-# # Upload an image for a user with file validation and optional thumbnail generation
-# @router.post("/upload-image/{user_id}")
-# async def upload_image(user_id: int, file: UploadFile = File(...)):
-#     # Read the image data from the uploaded file
-#     image_data = await file.read()
+# Pydantic model for response
+class ImageResponse(BaseModel):
+    image_id: int
+    user_id: int
+    uploaded_at: datetime 
 
-#     # Validate the image file type
-#     file_type = imghdr.what(None, h=image_data)
-#     if file_type not in ["jpeg", "png"]:
-#         raise HTTPException(status_code=400, detail="Invalid image format. Only JPEG and PNG are supported.")
+    class Config:
+        orm_mode = True  # Ensures that Pydantic can read from the ORM models
+        json_encoders = {
+            datetime: lambda v: v.isoformat()  # Convert datetime to ISO format string
+        }    
 
-#     # Optionally: Generate a thumbnail (e.g., resize the image)
-#     image = Image.open(BytesIO(image_data))
-#     image.thumbnail((150, 150))  # Resize to thumbnail size (150x150)
-#     thumbnail_io = BytesIO()
-#     image.save(thumbnail_io, format=image.format)
-#     thumbnail_data = thumbnail_io.getvalue()
+# Endpoint to upload an image
+@router.post("/upload/{user_id}", response_model=ImageResponse)
+async def upload_image(user_id: int, file: UploadFile = File(...)):
+    try:
+        # Read the image file data as binary
+        image_data = await file.read()
 
-#     # Store the thumbnail (or the original image if no resizing is needed) in the database
-#     result = await insert_or_update_user_image(user_id, thumbnail_data)
-#     if result:
-#         return {"message": "Image uploaded successfully", "user_id": result["user_id"]}
-#     raise HTTPException(status_code=500, detail="Image upload failed")
+        # Insert image record into the database
+        result = await insert_image(user_id, image_data)
+        return result
 
-# # Retrieve a user's image
-# @router.get("/get-image/{user_id}")
-# async def get_image(user_id: int):
-#     # Retrieve the image from the database
-#     image_record = await get_user_image(user_id)
+    except Exception as e:
+        # Log the error and full traceback for better debugging
+        logging.error(f"Error uploading image: {str(e)}")
+        logging.error(traceback.format_exc())  # Logs the full traceback of the error
+        raise HTTPException(status_code=500, detail="Error uploading image")
 
-#     if image_record and image_record["image_data"]:
-#         return StreamingResponse(io.BytesIO(image_record["image_data"]), media_type="image/jpeg")
-#     else:
-#         raise HTTPException(status_code=404, detail="Image not found")
+# Endpoint to fetch images by user_id (returns metadata without binary data)
+@router.get("/user/{user_id}", response_model=List[ImageResponse])
+async def get_images(user_id: int):
+    try:
+        result = await get_images_by_user(user_id)
+        if not result:
+            raise HTTPException(status_code=404, detail="No images found for the user")
+        return result
+    except Exception as e:
+        logging.error(f"Error fetching images: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error fetching images")
 
-
-# # Optional: Delete a user's image
-# @router.delete("/delete-image/{user_id}")
-# async def delete_image(user_id: int):
-#     result = await delete_user_image(user_id)
-#     if result:
-#         return {"message": "Image deleted successfully"}
-#     raise HTTPException(status_code=404, detail="Image not found")
+# Endpoint to delete an image by image_id
+@router.delete("/delete/{image_id}")
+async def delete_image_endpoint(image_id: int):
+    try:
+        # Delete image from the database
+        image_record = await delete_image(image_id)
+        if not image_record:
+            raise HTTPException(status_code=404, detail="Image not found")
+        return {"detail": "Image deleted successfully"}
+    except Exception as e:
+        logging.error(f"Error deleting image: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error deleting image")

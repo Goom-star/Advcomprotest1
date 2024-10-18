@@ -1,67 +1,32 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import {
+  Button,
   Box,
   Typography,
-  IconButton,
-} from "@mui/material";
-import Image from "next/image";
-import { styled } from "@mui/system";
-import CameraAltIcon from "@mui/icons-material/CameraAlt";
+  CircularProgress,
+  Avatar,
+} from '@mui/material';
+import styles from '../styles/Profile.module.css';
 
 const API_URL = "http://localhost:8000"; // FastAPI Backend URL
 
-// Styled components
-const ProfileImage = styled(Box)({
-  width: "150px",
-  height: "150px",
-  backgroundColor: "#e0e0e0",
-  borderRadius: "50%",
-  marginBottom: "20px",
-  overflow: "hidden",
-  position: "relative",
-  cursor: "pointer",
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  transition: "background-color 0.3s ease",
-  "&:hover": {
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
-  },
-});
-
-const IconOverlay = styled(Box)({
-  position: "absolute",
-  top: 0,
-  left: 0,
-  width: "100%",
-  height: "100%",
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  opacity: 0,
-  transition: "opacity 0.3s ease",
-  color: "rgba(0, 0, 0, 0.7)",
-  "&:hover": {
-    opacity: 1,
-  },
-});
-
-const FileInput = styled("input")({
-  display: "none",
-});
-
 export default function Profile() {
-  const [profileImage, setProfileImage] = useState("/default-avatar.png"); // Default avatar
-  const [userId, setUserId] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null); // For file input (image)
+  const [imageUrl, setImageUrl] = useState(null); // To display the image
+  const [loading, setLoading] = useState(false); // For loading state
+  const [userId, setUserId] = useState(null); // Store user_id
+  const [previewImage, setPreviewImage] = useState(null); // To preview the new image
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
 
+  // Fetch the current user's ID from localStorage
   useEffect(() => {
     const storedUserId = localStorage.getItem("user_id");
     if (storedUserId) {
-      setUserId(parseInt(storedUserId)); // Set userId as integer
-      fetchProfileImage(parseInt(storedUserId)); // Fetch profile image
+      setUserId(parseInt(storedUserId));
+    } else {
+      console.error("No user_id found in localStorage.");
     }
   }, []);
 
@@ -78,66 +43,118 @@ export default function Profile() {
     }
   }, []);
 
-  // Fetch the user's profile image
-  const fetchProfileImage = async (userId) => {
-    try {
-      const response = await axios.get(`${API_URL}/images/get-image/${userId}`, {
-        responseType: "blob", // Expect blob for image data
-      });
 
-      const imageURL = URL.createObjectURL(response.data);
-      setProfileImage(imageURL); // Set the profile image
+  // Fetch the current user's profile image when the component mounts
+  useEffect(() => {
+    if (userId) {
+      fetchProfileImage();
+    }
+  }, [userId]);
+
+  // Fetch profile image from the server
+  const fetchProfileImage = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/images/user/${userId}`);
+      if (response.data && response.data.image_data) {
+        setImageUrl(`data:image/jpeg;base64,${response.data.image_data}`);
+      }
     } catch (error) {
       console.error("Error fetching profile image:", error);
     }
   };
 
-  // Handle profile image upload
-  const handleImageUpload = async (event) => {
-    const file = event.target.files[0];
+  // Handle image selection and preview
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
     if (file) {
+      setPreviewImage(URL.createObjectURL(file)); // Display preview
+      setSelectedFile(file); // Set the file to be uploaded
+    }
+  };
+
+  // Handle form submission to upload image
+  const handleUpload = async () => {
+    if (selectedFile) {
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", selectedFile);
+      setLoading(true);
 
       try {
-        const response = await axios.post(`${API_URL}/images/upload-image/${userId}`, formData, {
+        const response = await axios.post(`${API_URL}/api/images/upload/${userId}`, formData, {
           headers: {
-            "Content-Type": "multipart/form-data",
+            'Content-Type': 'multipart/form-data',
           },
         });
 
-        if (response.status === 200) {
-          const imageURL = URL.createObjectURL(file);
-          setProfileImage(imageURL);
+        // On successful upload, update the image URL
+        if (response.data && response.data.image_data) {
+          setImageUrl(`data:image/jpeg;base64,${response.data.image_data}`);
+          setPreviewImage(null); // Clear preview after upload
         }
+
+        setLoading(false);
+        setSelectedFile(null); // Reset the selected file
       } catch (error) {
-        console.error("Error uploading image:", error);
+        console.error("Error uploading profile image:", error);
+        setLoading(false);
       }
+    } else {
+      console.error("No file selected.");
     }
   };
 
   return (
-    <Box sx={{ padding: "20px", backgroundColor: "#f5f5f5", minHeight: "100vh" }}>
-      <Typography variant="h4" gutterBottom>
+    <Box sx={{ textAlign: "center", padding: "20px", backgroundColor: "#f0f0f0", minHeight: "100vh" }}>
+      <Typography variant="h4" sx={{ marginBottom: "20px" }}>
         Profile
       </Typography>
 
-      <label htmlFor="image-upload">
-        <FileInput id="image-upload" type="file" accept="image/*" onChange={handleImageUpload} />
-        <ProfileImage onClick={() => document.getElementById("image-upload").click()}>
-          <Image src={profileImage} alt="Profile" fill style={{ objectFit: "cover" }} />
-          <IconOverlay>
-            <CameraAltIcon sx={{ fontSize: 30 }} />
-          </IconOverlay>
-        </ProfileImage>
-      </label>
-
+      {/* Profile Image */}
+      <Box sx={{ textAlign: "center", marginBottom: "20px" }}>
+        {imageUrl || previewImage ? (
+          <Avatar
+            alt="Profile"
+            src={previewImage || imageUrl}
+            sx={{ width: 150, height: 150, margin: "0 auto" }}
+          />
+        ) : (
+          <Avatar
+            alt="Profile Placeholder"
+            sx={{ width: 150, height: 150, margin: "0 auto", backgroundColor: '#ccc' }}
+          >
+            {/* Initials or Placeholder */}
+          </Avatar>
+        )}
+      </Box>
       <Typography variant="h6" sx={{ marginBottom: "10px" }}>
         {username || "User Name"}
       </Typography>
       <Typography variant="body1" color="textSecondary" sx={{ marginBottom: "20px" }}>
           {email || "useremail@example.com"}
-        </Typography>
+      </Typography>
+
+      {/* Input for uploading new profile image */}
+      <Button
+        variant="contained"
+        component="label"
+        sx={{ marginBottom: '20px', backgroundColor: '#555', color: '#fff' }}
+      >
+        Upload New Image
+        <input type="file" hidden onChange={handleImageChange} accept="image/*" />
+      </Button>
+
+      {/* Image Upload Section */}
+      <Box>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleUpload}
+          sx={{ marginLeft: "10px" }}
+          disabled={!selectedFile || loading}
+        >
+          {loading ? <CircularProgress size={24} /> : "Upload"}
+        </Button>
+      </Box>
     </Box>
   );
 }

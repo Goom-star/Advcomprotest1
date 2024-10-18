@@ -2,11 +2,8 @@ import * as React from "react";
 import { AppBar, Toolbar, Typography, Button } from "@mui/material";
 import { useRouter } from "next/router";
 import Link from "next/link";
-import FunctionsIcon from "@mui/icons-material/Functions";
 import PersonIcon from "@mui/icons-material/Person";
 import useBearStore from "@/store/useBearStore";
-
-
 
 const NavigationLayout = ({ children }) => {
   const router = useRouter();
@@ -14,9 +11,7 @@ const NavigationLayout = ({ children }) => {
 
   // Logout function
   const handleLogout = () => {
-    // Clear session data (e.g., remove token from localStorage)
     localStorage.removeItem("token");
-    // Redirect to the login or register page after logout
     router.push("/register");
   };
 
@@ -24,9 +19,16 @@ const NavigationLayout = ({ children }) => {
     <>
       <AppBar position="sticky" sx={{ backgroundColor: "#575757" }}>
         <Toolbar>
+          {/* Updated Logo */}
           <Link href={"/page1"}>
-            <FunctionsIcon sx={{ color: "#ffffff" }} fontSize="large" />
+            <img
+              src="/image1.png" // Ensure this path is correct
+              alt="Logo"
+              style={{ width: "40px", height: "40px" }} // Adjust the size as needed
+            />
           </Link>
+
+          {/* Website Name */}
           <Typography
             variant="body1"
             sx={{
@@ -39,15 +41,55 @@ const NavigationLayout = ({ children }) => {
           >
             {appName}
           </Typography>
+
+          {/* Calendar Button */}
+          <Button
+            variant="contained"
+            onClick={() => router.push("/calendar")}
+            sx={{
+              marginLeft: "10px",
+              backgroundColor: "#575757",
+              color: "inherit",
+              fontWeight: "bold",
+              textTransform: "none",
+              "&:hover": {
+                backgroundColor: "#e0e0e0",
+              },
+            }}
+          >
+            📆
+          </Button>
+
+          {/* Dashboard Button */}
+          <Button
+            variant="contained"
+            onClick={() => router.push("/dashboard")}
+            sx={{
+              marginLeft: "10px",
+              backgroundColor: "#575757",
+              color: "inherit",
+              fontWeight: "bold",
+              textTransform: "none",
+              "&:hover": {
+                backgroundColor: "#e0e0e0",
+              },
+            }}
+          >
+            Dashboard
+          </Button>
+
+          {/* Spacer */}
           <div style={{ flexGrow: 1 }} />
+
           {/* Profile Button */}
           <Button
             color="inherit"
-            onClick={() => router.push("/profile")} // Navigate to the profile page
-            sx={{ color: "#fff" }}
+            onClick={() => router.push("/profile")}
+            sx={{ color: "#fff", marginLeft: "10px" }}
           >
             <PersonIcon />
           </Button>
+
           {/* Logout Button */}
           <Button
             color="inherit"

@@ -344,3 +344,35 @@ def validate_due_date(due_date: date):
         raise HTTPException(status_code=400, detail="Due date cannot be in the past.")
 
     return due_date
+
+# Insert image into the database as binary data
+async def insert_image(user_id: int, image_data: bytes):
+    query = """
+    INSERT INTO images (user_id, image_data, uploaded_at)
+    VALUES (:user_id, :image_data, NOW())
+    RETURNING image_id, user_id, uploaded_at;
+    """
+    values = {"user_id": user_id, "image_data": image_data}
+    try:
+        return await database.fetch_one(query=query, values=values)
+    except Exception as e:
+        logging.error(f"Error inserting image: {str(e)}")
+        raise Exception("Failed to insert image")
+
+# Get images by user_id (without returning the binary data)
+async def get_images_by_user(user_id: int):
+    query = "SELECT image_id, user_id, uploaded_at FROM images WHERE user_id = :user_id"
+    try:
+        return await database.fetch_all(query=query, values={"user_id": user_id})
+    except Exception as e:
+        logging.error(f"Error fetching images: {str(e)}")
+        raise Exception("Failed to fetch images")
+
+# Delete image by image_id
+async def delete_image(image_id: int):
+    query = "DELETE FROM images WHERE image_id = :image_id RETURNING *"
+    try:
+        return await database.fetch_one(query=query, values={"image_id": image_id})
+    except Exception as e:
+        logging.error(f"Error deleting image: {str(e)}")
+        raise Exception("Failed to delete image")

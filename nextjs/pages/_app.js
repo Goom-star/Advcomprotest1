@@ -32,7 +32,7 @@ export default function App({ Component, pageProps, props }) {
   useEffect(() => {
     console.log("App load", pageName, router.query);
     setLoading(true);
-    setAppName("DEK RAI");
+    setAppName("V.C.P");
 
     // Check if user ID is available in query or state
     const user_id = router.query.user_id || 1; // Replace 1 with default or fetched user ID
